@@ -52,6 +52,10 @@ table{border-collapse:collapse;width:100%;font-size:12px;background:#fff} th,td{
 <div class="kpi"><b id="kGov">0</b><span>Governorates</span></div>
 <div class="kpi"><b id="kCov">0%</b><span>Current HQ coverage</span></div>
 </div>
+<div class="card" style="margin-top:14px;padding:12px;background:#f8fafc;box-shadow:none">
+<h3 style="margin-top:0">HQ Call Result Dynamic Statuses</h3>
+<div id="statusSummary" class="muted">Upload CSV to view call result status breakdown.</div>
+</div>
 </section>
 
 <section class="card span8">
@@ -114,6 +118,7 @@ table{border-collapse:collapse;width:100%;font-size:12px;background:#fff} th,td{
 
 <script>
 let rows=[], headers=[], allocations=[], validators=[];
+let statusConfig={};
 const KEY={id:"Officer HR Code",name:"Officer Name",spec:"Specialized",branch:"Branch",sup:"Supervisor Name",gov:"Gov",hire:"Hiring Date",hq:"HQ Call Result"};
 
 function parseCSV(text){
@@ -128,7 +133,20 @@ function parseCSV(text){
  return out;
 }
 function clean(v){return (v??"").toString().trim()}
-function hasHQ(r){return clean(r[KEY.hq])!==""}
+function isNumericStatus(v){
+ const s=clean(v);
+ return s!=="" && !isNaN(Number(s));
+}
+function classifyStatus(v){
+ const s=clean(v);
+ if(s==="") return {type:"Fresh",label:"Fresh (Blank)"};
+ if(isNumericStatus(s)) return {type:"Completed",label:"Completed (Numeric)"};
+ return {type:"Status",label:s};
+}
+function hasHQ(r){
+ const cls=classifyStatus(r[KEY.hq]);
+ return cls.type==="Completed";
+}
 function pct(a,b){return b?100*a/b:0}
 function esc(s){return clean(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
 function csvCell(v){v=clean(v); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
@@ -142,21 +160,72 @@ function callIdentity(r){
  const id=clean(r[KEY.id]).toLowerCase();
  const pc=phoneColumn();
  const phone=pc?clean(r[pc]).replace(/\D/g,""):"";
+ const name=clean(r[KEY.name]).toLowerCase();
  const fallback=[r[KEY.name],r[KEY.sup],r[KEY.branch],r[KEY.gov]].map(v=>clean(v).toLowerCase()).join("|");
- return {id,phone,fallback};
+ return {id,phone,name,fallback};
 }
 
 document.getElementById("file").addEventListener("change",async e=>{
  const f=e.target.files[0]; if(!f)return;
  const text=await f.text(), arr=parseCSV(text); headers=arr[0].map(x=>clean(x).replace(/^\ufeff/,""));
  rows=arr.slice(1).filter(a=>a.some(x=>clean(x)!=="")).map(a=>Object.fromEntries(headers.map((h,i)=>[h,a[i]??""])));
- validate(); renderStats(); clearAllocation();
+ analyzeStatuses(); validate(); renderStats(); clearAllocation();
 });
+
+function analyzeStatuses(){
+ statusConfig={};
+ const counts={};
+ rows.forEach(r=>{
+  const val=clean(r[KEY.hq]);
+  const cls=classifyStatus(val);
+  const key=cls.label;
+  counts[key]=(counts[key]||0)+1;
+  if(!statusConfig[key]){
+   let checked=false;
+   if(cls.type==="Fresh") checked=true;
+   else if(cls.type==="Completed") checked=false;
+   else {
+    const l=key.toLowerCase();
+    if(l.includes("busy")||l.includes("not available")||l.includes("no answer")||l.includes("retry")) checked=true;
+    else checked=false;
+   }
+   statusConfig[key]={type:cls.type,raw:val,checked:checked};
+  }
+ });
+ renderStatusSummary(counts);
+}
+
+function renderStatusSummary(counts){
+ const box=document.getElementById("statusSummary");
+ if(!Object.keys(counts).length){
+  box.innerHTML='<span class="muted">Upload CSV to view call result status breakdown.</span>';
+  return;
+ }
+ let html='<div style="display:flex;flex-wrap:wrap;gap:12px 24px;">';
+ Object.keys(counts).sort().forEach(key=>{
+  const cfg=statusConfig[key];
+  const isNumeric=cfg.type==="Completed";
+  const cnt=counts[key];
+  html+=`<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:${isNumeric?'not-allowed':'pointer'}">
+   <input type="checkbox" ${cfg.checked?'checked':''} ${isNumeric?'disabled':''} onchange="toggleStatusConfig('${esc(key)}',this.checked)">
+   <span><b>${esc(key)}</b> .......... <span class="muted">${cnt}</span></span>
+  </label>`;
+ });
+ html+='</div>';
+ box.innerHTML=html;
+}
+
+function toggleStatusConfig(key,checked){
+ if(statusConfig[key] && statusConfig[key].type!=="Completed"){
+  statusConfig[key].checked=checked;
+ }
+ renderStats();
+}
 
 function validate(){
  let a=[], missing=Object.values(KEY).filter(k=>!headers.includes(k));
  if(missing.length)a.push(`<div class="alert bad">Missing required columns: ${missing.map(esc).join(", ")}</div>`);
- else a.push(`<div class="alert ok">File loaded successfully. HQ Call Result is used as the historical validation flag: blank = eligible, non-blank = already validated.</div>`);
+ else a.push(`<div class="alert ok">File loaded successfully. Dynamic status filtering enabled.</div>`);
  if(!phoneColumn())a.push(`<div class="alert warn"><b>Phone number column is not present in this file.</b> The allocator will work, but phone cannot appear in exports until your source CSV includes a Phone/Mobile column.</div>`);
  let ids={}; rows.forEach(r=>{let x=clean(r[KEY.id]);ids[x]=(ids[x]||0)+1});let dup=Object.entries(ids).filter(([k,v])=>k&&v>1);
  if(dup.length)a.push(`<div class="alert warn">Found ${dup.length} duplicated HR Code(s). Duplicates are excluded from double-selection; please review the source data.</div>`);
@@ -164,7 +233,11 @@ function validate(){
 }
 function renderStats(){
  let done=rows.filter(hasHQ).length, sups=new Set(rows.map(r=>clean(r[KEY.sup])).filter(Boolean)), govs=new Set(rows.map(r=>clean(r[KEY.gov])).filter(Boolean));
- kRows.textContent=rows.length;kEligible.textContent=rows.length-done;kDone.textContent=done;kSup.textContent=sups.size;kGov.textContent=govs.size;kCov.textContent=pct(done,rows.length).toFixed(1)+"%";
+ let eligible=rows.filter(r=>{
+  const cls=classifyStatus(r[KEY.hq]);
+  return statusConfig[cls.label]?.checked??false;
+ }).length;
+ kRows.textContent=rows.length;kEligible.textContent=eligible;kDone.textContent=done;kSup.textContent=sups.size;kGov.textContent=govs.size;kCov.textContent=pct(done,rows.length).toFixed(1)+"%";
 }
 
 const SAVED_VALIDATORS=[
@@ -220,19 +293,19 @@ function generate(){
  let active=validators.filter(v=>clean(v.name)&&attemptsFor(v)>0);
  if(!active.length){genMsg.innerHTML='<div class="alert bad">Add at least one validator name and target.</div>';return}
  let gov=statsBy(KEY.gov), sup=statsBy(KEY.sup);
- let seenIds=new Set(), seenPhones=new Set(), seenFallback=new Set();
- let pool=rows.filter(r=>!hasHQ(r)).filter(r=>{
+ let globalAssignedIds=new Set(), globalAssignedPhones=new Set(), globalAssignedNames=new Set(), globalAssignedFallback=new Set();
+ let pool=rows.filter(r=>{
+  const cls=classifyStatus(r[KEY.hq]);
+  return statusConfig[cls.label]?.checked??false;
+ }).filter(r=>{
   const k=callIdentity(r);
-  if(k.id && seenIds.has(k.id))return false;
-  if(k.phone && seenPhones.has(k.phone))return false;
-  if(!k.id && !k.phone && seenFallback.has(k.fallback))return false;
-  if(k.id)seenIds.add(k.id);
-  if(k.phone)seenPhones.add(k.phone);
-  if(!k.id && !k.phone)seenFallback.add(k.fallback);
+  if(k.id && globalAssignedIds.has(k.id))return false;
+  if(k.phone && globalAssignedPhones.has(k.phone))return false;
+  if(k.name && globalAssignedNames.has(k.name))return false;
+  if(!k.id && !k.phone && !k.name && globalAssignedFallback.has(k.fallback))return false;
   return true;
  });
  let wg=+wGov.value||0, ws=+wSup.value||0, wa=+wAge.value||0, jit=+jitter.value||0;
- // Greedy re-scoring after every pick makes coverage converge instead of doing a one-time shuffle.
  allocations=[];
  let need=active.reduce((s,v)=>s+attemptsFor(v),0), picked=0, vIndex=0;
  while(pool.length && picked<need){
@@ -245,22 +318,56 @@ function generate(){
    if(score>bestScore){bestScore=score;best=i}
   }
   let r=pool.splice(best,1)[0], v=active[vIndex%active.length];
-  // Skip validators already full and find next available.
   let tries=0; while(allocations.filter(x=>x.__validator===v.name).length>=attemptsFor(v)&&tries<active.length){vIndex++;v=active[vIndex%active.length];tries++}
   if(tries>=active.length)break;
   const rk=callIdentity(r);
-  const alreadyAllocated=allocations.some(a=>{
-   const ak=callIdentity(a);
-   return (rk.id && ak.id===rk.id) || (rk.phone && ak.phone===rk.phone) || (!rk.id && !rk.phone && ak.fallback===rk.fallback);
-  });
-  if(alreadyAllocated)continue;
+  const isDup=(rk.id && globalAssignedIds.has(rk.id)) ||
+                (rk.phone && globalAssignedPhones.has(rk.phone)) ||
+                (rk.name && globalAssignedNames.has(rk.name)) ||
+                (!rk.id && !rk.phone && !rk.name && globalAssignedFallback.has(rk.fallback));
+  if(isDup)continue;
+  if(rk.id) globalAssignedIds.add(rk.id);
+  if(rk.phone) globalAssignedPhones.add(rk.phone);
+  if(rk.name) globalAssignedNames.add(rk.name);
+  if(!rk.id && !rk.phone && !rk.name) globalAssignedFallback.add(rk.fallback);
+
   let x={...r,__validator:v.name,__allocationDate:new Date().toLocaleDateString("en-CA")};allocations.push(x);
   let g=clean(r[KEY.gov])||"(Blank)",s=clean(r[KEY.sup])||"(Blank)";gov[g].done++;sup[s].done++;
   picked++;vIndex++;
  }
+
+ performFinalDuplicateValidation();
+
  genMsg.innerHTML=`<div class="alert ok">Generated ${allocations.length} calls across ${active.length} validator(s). Selection favors coverage gaps and older unvalidated hires, with controlled random tie-breaking.</div>`;
  renderAll();
 }
+
+function performFinalDuplicateValidation(){
+ const seenIds=new Set(), seenPhones=new Set(), seenNames=new Set();
+ const cleanAllocations=[];
+ for(let i=0; i<allocations.length; i++){
+  const r=allocations[i];
+  const k=callIdentity(r);
+  let isDup=false;
+  if(k.id){
+   if(seenIds.has(k.id)) isDup=true;
+   else seenIds.add(k.id);
+  }
+  if(!isDup && k.phone){
+   if(seenPhones.has(k.phone)) isDup=true;
+   else seenPhones.add(k.phone);
+  }
+  if(!isDup && k.name){
+   if(seenNames.has(k.name)) isDup=true;
+   else seenNames.add(k.name);
+  }
+  if(!isDup){
+   cleanAllocations.push(r);
+  }
+ }
+ allocations=cleanAllocations;
+}
+
 function clearAllocation(){allocations=[];genMsg.innerHTML="";renderAll()}
 function renderAll(){renderCoverage();renderExports();renderFilter();renderPreview()}
 
@@ -274,12 +381,20 @@ function renderCoverage(){
  let zeroAfter=Object.values(after).filter(x=>x.done===0).length;
  coverageSummary.innerHTML=`Supervisors with zero HQ coverage: <b>${zeroSupBefore}</b> before → <b>${zeroAfter}</b> after this allocation.`;
 }
+
+function getOrderedCols(){
+ const pc=phoneColumn();
+ let cols=["Assigned HQ Validator","Allocation Date",KEY.id,KEY.name,pc,KEY.spec,KEY.branch,KEY.sup,KEY.gov,KEY.hire].filter(Boolean);
+ headers.forEach(h=>{if(h!==KEY.hq && !cols.includes(h))cols.push(h)});
+ return cols;
+}
+function exportCols(){return getOrderedCols()}
+
 function renderExports(){
  if(!allocations.length){exports.innerHTML='<span class="muted">No allocation generated yet.</span>';return}
  let names=[...new Set(allocations.map(x=>x.__validator))];
  exports.innerHTML=names.map(n=>{let c=allocations.filter(x=>x.__validator===n).length;return `<div class="row" style="justify-content:space-between;border-bottom:1px solid #eee;padding:9px 0"><div><b>${esc(n)}</b><br><span class="muted">${c} calls</span></div><button onclick='exportPerson(${JSON.stringify(n)})'>Export ${esc(n)}</button></div>`}).join("");
 }
-function exportCols(){return ["Assigned HQ Validator","Allocation Date",...headers]}
 function exportRows(data){return data.map(r=>{let o={"Assigned HQ Validator":r.__validator,"Allocation Date":r.__allocationDate};headers.forEach(h=>o[h]=r[h]);return o})}
 function safeName(s){return clean(s).replace(/[\\/:*?"<>|]/g,"_")}
 function exportPerson(n){let d=allocations.filter(x=>x.__validator===n);downloadCSV(`${safeName(n)}_HQ_Calls_${new Date().toLocaleDateString("en-CA")}.csv`,exportRows(d),exportCols())}
@@ -291,9 +406,8 @@ function renderPreview(){
  let data=allocations, fv=filterValidator.value, q=clean(search.value).toLowerCase();
  if(fv)data=data.filter(x=>x.__validator===fv);
  if(q)data=data.filter(r=>[r[KEY.name],r[KEY.sup],r[KEY.gov],r[KEY.branch],r[KEY.id]].some(v=>clean(v).toLowerCase().includes(q)));
- let preferred=["Assigned HQ Validator","Allocation Date",KEY.id,KEY.name,phoneColumn(),KEY.spec,KEY.branch,KEY.sup,KEY.gov,KEY.hire,KEY.hq].filter(Boolean);
- let cols=[...new Set(preferred)];
- previewTable.innerHTML='<thead><tr>'+cols.map(c=>`<th>${esc(c)}</th>`).join("")+'</tr></thead><tbody>'+exportRows(data).map(r=>'<tr>'+cols.map(c=>`<td>${esc(r[c])}</td>`).join("")+'</tr>').join("")+'</tbody>';
+ let cols=getOrderedCols();
+ previewTable.innerHTML='<thead><tr>'+cols.map(c=>`<th>${esc(c)}</th>`).join("")+'</tr></thead><tbody>'+exportRows(data).map(r=>'<tr>'+cols.map(c=>`<td>${esc(r[c]??"")}</td>`).join("")+'</tr>').join("")+'</tbody>';
 }
 </script>
 </body>
