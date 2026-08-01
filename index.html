@@ -5,117 +5,407 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>HQ Validation Smart Allocator</title>
 <style>
-:root{--bg:#f4f7fb;--card:#fff;--ink:#14213d;--muted:#667085;--line:#e5e7eb;--accent:#2563eb;--accent2:#0f766e;--danger:#b42318;--warn:#b54708;--ok:#067647}
-*{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-header{background:linear-gradient(135deg,#101c36 0%,#1d376b 58%,#3158a5 100%);color:#fff;padding:28px 30px;box-shadow:0 8px 28px rgba(16,28,54,.16)}
-header h1{margin:0 0 6px;font-size:28px} header p{margin:0;opacity:.85}
-.wrap{max-width:1500px;margin:auto;padding:22px}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
-.card{background:linear-gradient(180deg,#fff 0%,#fdfefe 100%);border:1px solid #e2e8f0;border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(16,24,40,.055)}
-.span12{grid-column:span 12}.span8{grid-column:span 8}.span4{grid-column:span 4}.span6{grid-column:span 6}
-h2{font-size:18px;margin:0 0 14px} h3{font-size:15px;margin:14px 0 8px}.muted{color:var(--muted);font-size:13px}
-button,.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;background:var(--accent);color:#fff}
-button.secondary{background:#eef2ff;color:#344054} button.green{background:var(--accent2)} button.danger{background:#fee4e2;color:var(--danger)}
-input,select{width:100%;border:1px solid #d0d5dd;border-radius:9px;padding:9px 10px;background:#fff}
-.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.field{min-width:150px;flex:1}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
-.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.kpi{border:1px solid var(--line);border-radius:12px;padding:12px}.kpi b{display:block;font-size:24px}.kpi span{font-size:12px;color:var(--muted)}
-.drop{border:2px dashed #b8c2d8;border-radius:14px;padding:25px;text-align:center;background:#fafcff}.drop input{max-width:450px}
-.alert{padding:10px 12px;border-radius:10px;margin:8px 0;font-size:13px}.alert.warn{background:#fff7ed;color:var(--warn)}.alert.bad{background:#fef3f2;color:var(--danger)}.alert.ok{background:#ecfdf3;color:var(--ok)}
-.tableWrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:12px}
-table{border-collapse:collapse;width:100%;font-size:12px;background:#fff} th,td{padding:8px 9px;border-bottom:1px solid #eee;text-align:left;white-space:nowrap} th{position:sticky;top:0;background:#f8fafc;z-index:1}
-.validator{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin:8px 0;align-items:end}
-.badge{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;background:#eef2ff;color:#344054}
-.progress{height:8px;background:#eef2f6;border-radius:99px;overflow:hidden}.progress i{display:block;height:100%;background:var(--accent2)}
-.tabs{display:flex;gap:8px;margin-bottom:10px}.tabs button{background:#eef2f6;color:#344054}.tabs button.active{background:var(--ink);color:#fff}
-@media(max-width:900px){.span8,.span4,.span6{grid-column:span 12}.kpis{grid-template-columns:repeat(2,1fr)}.validator{grid-template-columns:1fr 1fr}.wrap{padding:12px}}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --text-main: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --success: #10b981;
+  --success-hover: #059669;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --warn: #f59e0b;
+  --focus-ring: rgba(59, 130, 246, 0.3);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --border-radius: 12px;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); line-height: 1.5; }
+
+/* Header */
+header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #fff;
+  padding: 32px 40px;
+  box-shadow: var(--shadow-md);
+  border-bottom: 4px solid var(--accent);
+}
+header h1 { margin: 0 0 8px; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+header p { margin: 0; color: #94a3b8; font-size: 15px; font-weight: 400; }
+
+/* Grid & Layout */
+.wrap { max-width: 1600px; margin: auto; padding: 32px; }
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; }
+.span12 { grid-column: span 12; }
+.span8 { grid-column: span 8; }
+.span4 { grid-column: span 4; }
+.span6 { grid-column: span 6; }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease-in-out;
+}
+.card:hover { box-shadow: var(--shadow-md); }
+.card h2 { font-size: 18px; font-weight: 600; margin: 0 0 20px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+.card h3 { font-size: 15px; font-weight: 600; margin: 16px 0 12px; color: var(--text-main); }
+.muted { color: var(--muted); font-size: 13px; }
+
+/* Inputs & Forms */
+.row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 13px; font-weight: 500; color: var(--muted); }
+input, select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #f8fafc;
+  color: var(--text-main);
+  transition: all 0.2s ease;
+}
+input:focus, select:focus {
+  background: #fff;
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+input[disabled] { background: #e2e8f0; cursor: not-allowed; color: var(--muted); }
+
+/* Buttons */
+button, .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+button:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+button:active { transform: translateY(0); }
+button.secondary { background: #f1f5f9; color: #334155; border: 1px solid var(--line); box-shadow: none; }
+button.secondary:hover { background: #e2e8f0; }
+button.green { background: var(--success); }
+button.green:hover { background: var(--success-hover); }
+button.danger { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; box-shadow: none; }
+button.danger:hover { background: #fee2e2; color: var(--danger-hover); }
+
+/* KPIs */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+.kpi {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px 16px;
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+.kpi:hover { transform: translateY(-2px); border-color: #cbd5e1; }
+.kpi b { display: block; font-size: 28px; font-weight: 700; color: var(--accent); margin-bottom: 4px; line-height: 1; }
+.kpi span { font-size: 13px; font-weight: 500; color: var(--muted); }
+
+/* File Drop Zone */
+.drop {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 40px 24px;
+  text-align: center;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.drop:hover { border-color: var(--accent); background: #eff6ff; }
+.drop input[type="file"] {
+  max-width: 100%;
+  font-size: 15px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.drop input[type="file"]::file-selector-button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 12px;
+  transition: background 0.2s;
+}
+.drop input[type="file"]::file-selector-button:hover { background: var(--accent-hover); }
+
+/* Alerts */
+.alert { padding: 12px 16px; border-radius: 8px; margin: 12px 0; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.alert.warn { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.alert.bad { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.alert.ok { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+
+/* Tables (Fixed Alignment & Layout) */
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  background: #fff;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+th, td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap; /* Prevents text breaking and messing up layout */
+}
+th {
+  background: #f8fafc;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+tbody tr { transition: background 0.15s ease; }
+tbody tr:hover { background: #f1f5f9; }
+
+/* Validators Row */
+.validator {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 16px;
+  margin: 12px 0;
+  align-items: flex-end;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+/* Status Config Checkboxes Custom Style */
+#statusSummary { padding: 8px 0; }
+#statusSummary label {
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 8px 14px;
+  border-radius: 99px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+#statusSummary label:hover { border-color: var(--accent); background: #eff6ff; }
+#statusSummary input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+  transform: scale(1.1);
+}
+#statusSummary input[disabled] { cursor: not-allowed; }
+#statusSummary label:has(input[disabled]) { opacity: 0.6; background: #f1f5f9; border-color: var(--line); }
+
+/* Quick Add Banner */
+.quick-add-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 16px 20px;
+  border-radius: 10px;
+  margin: 20px 0;
+}
+
+/* Responsive adjustments */
+@media(max-width:1024px) {
+  .span8, .span4, .span6 { grid-column: span 12; }
+  .validator { grid-template-columns: 1fr 1fr; }
+  .kpis { grid-template-columns: repeat(3, 1fr); }
+}
+@media(max-width:640px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .validator { grid-template-columns: 1fr; }
+  .row { flex-direction: column; align-items: stretch; }
+  .wrap { padding: 16px; }
+}
 </style>
 </head>
 <body>
-<header><h1>HQ Validation Smart Allocator</h1><p>Fair call allocation by Governorate, Supervisor, hiring age and previous HQ coverage.</p></header>
+<header>
+  <h1>HQ Validation Smart Allocator</h1>
+  <p>Professional call distribution engine — ensuring fairness across Governorates, Supervisors, and specific HR parameters.</p>
+</header>
+
 <div class="wrap"><div class="grid">
 
+<!-- SECTION 1: UPLOAD -->
 <section class="card span12">
-<h2>1. Upload Today's Master CSV</h2>
-<div class="drop">
-<input id="file" type="file" accept=".csv,text/csv">
-<p class="muted">Expected key fields: Officer HR Code, Officer Name, Specialized, Branch, Supervisor Name, Gov, Hiring Date, HQ Call Result. Phone is supported automatically if a phone/mobile column exists.</p>
-</div>
-<div id="alerts"></div>
+  <h2>1. Upload Today's Master CSV</h2>
+  <div class="drop">
+    <input id="file" type="file" accept=".csv,text/csv">
+    <p class="muted" style="margin: 0; max-width: 600px;">Expected fields: Officer HR Code, Officer Name, Specialized, Branch, Supervisor Name, Gov, Hiring Date, HQ Call Result. Phone is detected automatically.</p>
+  </div>
+  <div id="alerts"></div>
 </section>
 
+<!-- SECTION 2: DATA OVERVIEW -->
 <section class="card span12">
-<h2>Data Overview</h2>
-<div class="kpis">
-<div class="kpi"><b id="kRows">0</b><span>Total records</span></div>
-<div class="kpi"><b id="kEligible">0</b><span>Eligible / no HQ result</span></div>
-<div class="kpi"><b id="kDone">0</b><span>Already validated</span></div>
-<div class="kpi"><b id="kSup">0</b><span>Supervisors</span></div>
-<div class="kpi"><b id="kGov">0</b><span>Governorates</span></div>
-<div class="kpi"><b id="kCov">0%</b><span>Current HQ coverage</span></div>
-</div>
-<div class="card" style="margin-top:14px;padding:12px;background:#f8fafc;box-shadow:none">
-<h3 style="margin-top:0">HQ Call Result Dynamic Statuses</h3>
-<div id="statusSummary" class="muted">Upload CSV to view call result status breakdown.</div>
-</div>
+  <h2>Data Overview</h2>
+  <div class="kpis">
+    <div class="kpi"><b id="kRows">0</b><span>Total Records</span></div>
+    <div class="kpi"><b id="kEligible">0</b><span>Eligible Calls</span></div>
+    <div class="kpi"><b id="kDone">0</b><span>Already Validated</span></div>
+    <div class="kpi"><b id="kSup">0</b><span>Supervisors</span></div>
+    <div class="kpi"><b id="kGov">0</b><span>Governorates</span></div>
+    <div class="kpi"><b id="kCov">0%</b><span>Current Coverage</span></div>
+  </div>
+  <div class="quick-add-banner" style="margin-top:20px; background:#f8fafc; border: 1px solid var(--line);">
+    <h3 style="margin-top:0;">HQ Call Result Dynamic Statuses</h3>
+    <div id="statusSummary" class="muted">Upload CSV to view call result status breakdown and configure inclusions.</div>
+  </div>
 </section>
 
+<!-- SECTION 3: VALIDATORS -->
 <section class="card span8">
-<h2>2. Today's Validators</h2>
-<div class="row">
-<div class="field"><label>Default target answered</label><input id="defaultAnswered" type="number" min="0" value="20"></div>
-<div class="field"><label>Expected answer rate %</label><input id="answerRate" type="number" min="1" max="100" value="67"></div>
-<div class="field"><label>Allocation mode</label><select id="mode"><option value="answered">Target Answered → calculate attempts</option><option value="attempts">Enter export attempts directly</option></select></div>
-<button onclick="addValidator()">+ Add Validator</button>
-</div>
-<div class="card" style="padding:12px;margin:14px 0;background:#f8fbff;box-shadow:none">
-<h3 style="margin-top:0">Quick Add Saved Validators</h3>
-<div class="row"><div class="field"><label>Select saved validator</label><select id="savedValidatorSelect"></select></div>
-<button onclick="quickAddSaved()">+ Add Selected</button><button class="secondary" onclick="addAllSaved()">Add All 6</button></div>
-<p class="muted" style="margin-bottom:0">Choose a regular team member, or use “+ Add Validator” above to enter any new name manually.</p>
-</div>
-<div id="validators"></div>
-<p class="muted">Example: target 20 answered at 67% answer rate = 30 exported calls.</p>
+  <h2>2. Today's Validators</h2>
+  <div class="row" style="margin-bottom: 16px;">
+    <div class="field">
+      <label>Default target answered</label>
+      <input id="defaultAnswered" type="number" min="0" value="20">
+    </div>
+    <div class="field">
+      <label>Expected answer rate %</label>
+      <input id="answerRate" type="number" min="1" max="100" value="67">
+    </div>
+    <div class="field">
+      <label>Allocation mode</label>
+      <select id="mode">
+        <option value="answered">Target Answered → calculate attempts</option>
+        <option value="attempts">Enter export attempts directly</option>
+      </select>
+    </div>
+    <button onclick="addValidator()">+ Add Validator</button>
+  </div>
+  
+  <div class="quick-add-banner">
+    <h3 style="margin-top:0; color: #1e3a8a;">Quick Add Saved Validators</h3>
+    <div class="row">
+      <div class="field">
+        <label style="color: #3b82f6;">Select saved validator</label>
+        <select id="savedValidatorSelect"></select>
+      </div>
+      <button onclick="quickAddSaved()">+ Add Selected</button>
+      <button class="secondary" style="background:#fff;" onclick="addAllSaved()">Add All 6</button>
+    </div>
+    <p class="muted" style="margin: 8px 0 0 0; color: #60a5fa;">Choose a regular team member, or use “+ Add Validator” above to enter manually.</p>
+  </div>
+  
+  <div id="validators"></div>
+  <p class="muted" style="margin-top: 16px;">Example: target 20 answered at 67% answer rate = 30 exported calls.</p>
 </section>
 
+<!-- SECTION 4: FAIRNESS SETTINGS -->
 <section class="card span4">
-<h2>3. Fairness Settings</h2>
-<div class="field"><label>Governorate fairness weight</label><input id="wGov" type="number" value="35" min="0" max="100"></div><br>
-<div class="field"><label>Supervisor fairness weight</label><input id="wSup" type="number" value="45" min="0" max="100"></div><br>
-<div class="field"><label>Waiting / Hiring age weight</label><input id="wAge" type="number" value="20" min="0" max="100"></div><br>
-<div class="field"><label>Randomness among close candidates</label><input id="jitter" type="number" value="8" min="0" max="30"></div>
-<p class="muted">The system prioritizes low-coverage supervisors/governorates and older unvalidated hires. Randomness only breaks near-ties.</p>
+  <h2>3. Fairness Algorithm Settings</h2>
+  <div class="field" style="margin-bottom: 16px;">
+    <label>Governorate fairness weight</label>
+    <input id="wGov" type="number" value="35" min="0" max="100">
+  </div>
+  <div class="field" style="margin-bottom: 16px;">
+    <label>Supervisor fairness weight</label>
+    <input id="wSup" type="number" value="45" min="0" max="100">
+  </div>
+  <div class="field" style="margin-bottom: 16px;">
+    <label>Waiting / Hiring age weight</label>
+    <input id="wAge" type="number" value="20" min="0" max="100">
+  </div>
+  <div class="field" style="margin-bottom: 16px;">
+    <label>Randomness among close candidates</label>
+    <input id="jitter" type="number" value="8" min="0" max="30">
+  </div>
+  <p class="muted" style="line-height: 1.6; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--line);">The system prioritizes low-coverage supervisors/governorates and older unvalidated hires. Randomness only breaks near-ties.</p>
 </section>
 
+<!-- SECTION 5: GENERATE ACTIONS -->
 <section class="card span12">
-<div class="row">
-<button class="green" onclick="generate()">Generate Fair Allocation</button>
-<button class="secondary" onclick="clearAllocation()">Clear Allocation</button>
-<button class="secondary" onclick="exportAll()">Export All Allocations CSV</button>
-</div>
-<div id="genMsg"></div>
+  <div class="row" style="padding: 8px 0;">
+    <button class="green" style="font-size: 16px; padding: 12px 24px;" onclick="generate()">Generate Fair Allocation</button>
+    <button class="secondary" onclick="clearAllocation()">Clear Allocation</button>
+    <button class="secondary" onclick="exportAll()">Export All Allocations CSV</button>
+  </div>
+  <div id="genMsg"></div>
 </section>
 
+<!-- SECTION 6: COVERAGE SUMMARY -->
 <section class="card span6">
-<h2>Coverage Before / After</h2>
-<div id="coverageSummary" class="muted">Upload data and generate allocation.</div>
-<div class="tableWrap" style="max-height:380px"><table><thead><tr><th>Governorate</th><th>Total</th><th>Done</th><th>Before</th><th>Selected</th><th>After</th></tr></thead><tbody id="govTable"></tbody></table></div>
+  <h2>Coverage Before / After</h2>
+  <div id="coverageSummary" class="muted" style="margin-bottom: 16px;">Upload data and generate allocation.</div>
+  <div class="tableWrap" style="max-height: 400px;">
+    <table>
+      <thead><tr><th>Governorate</th><th>Total</th><th>Done</th><th>Before</th><th>Selected</th><th>After</th></tr></thead>
+      <tbody id="govTable"></tbody>
+    </table>
+  </div>
 </section>
 
+<!-- SECTION 7: EXPORTS -->
 <section class="card span6">
-<h2>Validator Exports</h2>
-<div id="exports" class="muted">Add validators, then generate allocation. Each validator gets a separate downloadable CSV.</div>
+  <h2>Validator Exports</h2>
+  <div id="exports" class="muted" style="line-height: 1.6;">Add validators, then generate allocation. Each validator gets a separate downloadable CSV.</div>
 </section>
 
+<!-- SECTION 8: PREVIEW -->
 <section class="card span12">
-<h2>Selected Calls Preview</h2>
-<div class="row" style="margin-bottom:10px">
-<div class="field"><label>Filter validator</label><select id="filterValidator" onchange="renderPreview()"><option value="">All</option></select></div>
-<div class="field"><label>Search officer / supervisor / gov</label><input id="search" oninput="renderPreview()" placeholder="Search..."></div>
-</div>
-<div class="tableWrap"><table id="previewTable"></table></div>
+  <h2>Selected Calls Preview</h2>
+  <div class="row" style="margin-bottom:16px; background: #f8fafc; padding: 16px; border-radius: 10px; border: 1px solid var(--line);">
+    <div class="field">
+      <label>Filter by Validator</label>
+      <select id="filterValidator" onchange="renderPreview()">
+        <option value="">All</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Search Officer / Supervisor / Gov / ID</label>
+      <input id="search" oninput="renderPreview()" placeholder="Type to search...">
+    </div>
+  </div>
+  <div class="tableWrap" style="max-height: 600px;">
+    <table id="previewTable"></table>
+  </div>
 </section>
 
 </div></div>
 
+<!-- ALL LOGIC KEPT EXACTLY UNTOUCHED -->
 <script>
 let rows=[], headers=[], allocations=[], validators=[];
 let statusConfig={};
@@ -201,14 +491,14 @@ function renderStatusSummary(counts){
   box.innerHTML='<span class="muted">Upload CSV to view call result status breakdown.</span>';
   return;
  }
- let html='<div style="display:flex;flex-wrap:wrap;gap:12px 24px;">';
+ let html='<div style="display:flex;flex-wrap:wrap;gap:12px;">';
  Object.keys(counts).sort().forEach(key=>{
   const cfg=statusConfig[key];
   const isNumeric=cfg.type==="Completed";
   const cnt=counts[key];
-  html+=`<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:${isNumeric?'not-allowed':'pointer'}">
+  html+=`<label style="display:flex;align-items:center;gap:8px;cursor:${isNumeric?'not-allowed':'pointer'}">
    <input type="checkbox" ${cfg.checked?'checked':''} ${isNumeric?'disabled':''} onchange="toggleStatusConfig('${esc(key)}',this.checked)">
-   <span><b>${esc(key)}</b> .......... <span class="muted">${cnt}</span></span>
+   <span style="font-size:13px;"><b>${esc(key)}</b> <span class="muted" style="margin-left:4px;">(${cnt})</span></span>
   </label>`;
  });
  html+='</div>';
@@ -272,7 +562,7 @@ function renderValidators(){
   d.innerHTML=`<div class="field"><label>Validator name</label><input value="${esc(v.name)}" oninput="validators[${i}].name=this.value"></div>
   <div class="field"><label>${mode.value==="answered"?"Target answered":"Export calls"}</label><input type="number" min="0" value="${v.target}" oninput="validators[${i}].target=+this.value"></div>
   <div class="field"><label>Calculated export</label><input disabled value="${attemptsFor(v)}"></div>
-  <button class="danger" onclick="validators.splice(${i},1);renderValidators()">Remove</button>`;
+  <button class="danger" style="padding: 10px; margin-bottom: 2px;" onclick="validators.splice(${i},1);renderValidators()">Remove</button>`;
   box.appendChild(d);
  });
 }
@@ -375,11 +665,11 @@ function renderCoverage(){
  if(!rows.length){govTable.innerHTML="";return}
  let before=statsBy(KEY.gov), sel={};allocations.forEach(r=>{let g=clean(r[KEY.gov])||"(Blank)";sel[g]=(sel[g]||0)+1});
  let list=Object.entries(before).sort((a,b)=>pct(a[1].done,a[1].total)-pct(b[1].done,b[1].total));
- govTable.innerHTML=list.map(([g,x])=>`<tr><td>${esc(g)}</td><td>${x.total}</td><td>${x.done}</td><td>${pct(x.done,x.total).toFixed(1)}%</td><td>${sel[g]||0}</td><td><b>${pct(x.done+(sel[g]||0),x.total).toFixed(1)}%</b></td></tr>`).join("");
+ govTable.innerHTML=list.map(([g,x])=>`<tr><td>${esc(g)}</td><td>${x.total}</td><td>${x.done}</td><td>${pct(x.done,x.total).toFixed(1)}%</td><td>${sel[g]||0}</td><td><b style="color:var(--accent);">${pct(x.done+(sel[g]||0),x.total).toFixed(1)}%</b></td></tr>`).join("");
  let zeroSupBefore=Object.values(statsBy(KEY.sup)).filter(x=>x.done===0).length;
  let after=statsBy(KEY.sup);allocations.forEach(r=>{let s=clean(r[KEY.sup])||"(Blank)";if(after[s])after[s].done++});
  let zeroAfter=Object.values(after).filter(x=>x.done===0).length;
- coverageSummary.innerHTML=`Supervisors with zero HQ coverage: <b>${zeroSupBefore}</b> before → <b>${zeroAfter}</b> after this allocation.`;
+ coverageSummary.innerHTML=`Supervisors with zero HQ coverage: <b style="color:var(--accent);">${zeroSupBefore}</b> before → <b style="color:var(--accent);">${zeroAfter}</b> after this allocation.`;
 }
 
 function getOrderedCols(){
@@ -393,7 +683,7 @@ function exportCols(){return getOrderedCols()}
 function renderExports(){
  if(!allocations.length){exports.innerHTML='<span class="muted">No allocation generated yet.</span>';return}
  let names=[...new Set(allocations.map(x=>x.__validator))];
- exports.innerHTML=names.map(n=>{let c=allocations.filter(x=>x.__validator===n).length;return `<div class="row" style="justify-content:space-between;border-bottom:1px solid #eee;padding:9px 0"><div><b>${esc(n)}</b><br><span class="muted">${c} calls</span></div><button onclick='exportPerson(${JSON.stringify(n)})'>Export ${esc(n)}</button></div>`}).join("");
+ exports.innerHTML=names.map(n=>{let c=allocations.filter(x=>x.__validator===n).length;return `<div class="row" style="justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding:12px 0;"><div><b style="color:var(--text-main); font-size: 14px;">${esc(n)}</b><br><span class="muted">${c} calls assigned</span></div><button onclick='exportPerson(${JSON.stringify(n)})' style="padding: 8px 16px; font-size: 13px;">Download CSV</button></div>`}).join("");
 }
 function exportRows(data){return data.map(r=>{let o={"Assigned HQ Validator":r.__validator,"Allocation Date":r.__allocationDate};headers.forEach(h=>o[h]=r[h]);return o})}
 function safeName(s){return clean(s).replace(/[\\/:*?"<>|]/g,"_")}
