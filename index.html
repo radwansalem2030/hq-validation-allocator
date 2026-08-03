@@ -187,7 +187,7 @@ table {
 th, td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
-  white-space: nowrap; /* Prevents text breaking and messing up layout */
+  white-space: nowrap;
 }
 th {
   background: #f8fafc;
@@ -405,7 +405,6 @@ tbody tr:hover { background: #f1f5f9; }
 
 </div></div>
 
-<!-- ALL LOGIC KEPT EXACTLY UNTOUCHED -->
 <script>
 let rows=[], headers=[], allocations=[], validators=[];
 let statusConfig={};
@@ -496,20 +495,14 @@ function renderStatusSummary(counts){
   const cfg=statusConfig[key];
   const isNumeric=cfg.type==="Completed";
   const cnt=counts[key];
+  // الكود هنا بقى بيعتمد على قراءة الـ DOM مباشرة بدل ما يبعت الداتا جوه الفانكشن
   html+=`<label style="display:flex;align-items:center;gap:8px;cursor:${isNumeric?'not-allowed':'pointer'}">
-   <input type="checkbox" ${cfg.checked?'checked':''} ${isNumeric?'disabled':''} onchange="toggleStatusConfig('${esc(key)}',this.checked)">
+   <input type="checkbox" value="${esc(key)}" ${cfg.checked?'checked':''} ${isNumeric?'disabled':''} onchange="renderStats()">
    <span style="font-size:13px;"><b>${esc(key)}</b> <span class="muted" style="margin-left:4px;">(${cnt})</span></span>
   </label>`;
  });
  html+='</div>';
  box.innerHTML=html;
-}
-
-function toggleStatusConfig(key,checked){
- if(statusConfig[key] && statusConfig[key].type!=="Completed"){
-  statusConfig[key].checked=checked;
- }
- renderStats();
 }
 
 function validate(){
@@ -521,13 +514,34 @@ function validate(){
  if(dup.length)a.push(`<div class="alert warn">Found ${dup.length} duplicated HR Code(s). Duplicates are excluded from double-selection; please review the source data.</div>`);
  document.getElementById("alerts").innerHTML=a.join("");
 }
+
 function renderStats(){
  let done=rows.filter(hasHQ).length, sups=new Set(rows.map(r=>clean(r[KEY.sup])).filter(Boolean)), govs=new Set(rows.map(r=>clean(r[KEY.gov])).filter(Boolean));
- let eligible=rows.filter(r=>{
-  const cls=classifyStatus(r[KEY.hq]);
-  return statusConfig[cls.label]?.checked??false;
- }).length;
- kRows.textContent=rows.length;kEligible.textContent=eligible;kDone.textContent=done;kSup.textContent=sups.size;kGov.textContent=govs.size;kCov.textContent=pct(done,rows.length).toFixed(1)+"%";
+ 
+ // قراءة حية ومباشرة للـ Checkboxes من الشاشة لتجنب أي أخطاء
+ const cbContainer = document.getElementById("statusSummary");
+ let eligible = 0;
+ 
+ if (cbContainer && cbContainer.querySelector('input[type="checkbox"]')) {
+     let checkedLabels = new Set();
+     cbContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => checkedLabels.add(cb.value));
+     eligible=rows.filter(r=>{
+      const cls=classifyStatus(r[KEY.hq]);
+      return checkedLabels.has(cls.label);
+     }).length;
+ } else {
+     eligible=rows.filter(r=>{
+      const cls=classifyStatus(r[KEY.hq]);
+      return statusConfig[cls.label]?.checked??false;
+     }).length;
+ }
+
+ kRows.textContent=rows.length;
+ kEligible.textContent=eligible;
+ kDone.textContent=done;
+ kSup.textContent=sups.size;
+ kGov.textContent=govs.size;
+ kCov.textContent=pct(done,rows.length).toFixed(1)+"%";
 }
 
 const SAVED_VALIDATORS=[
@@ -582,11 +596,17 @@ function generate(){
  if(Object.values(KEY).some(k=>!headers.includes(k))){genMsg.innerHTML='<div class="alert bad">Required columns are missing.</div>';return}
  let active=validators.filter(v=>clean(v.name)&&attemptsFor(v)>0);
  if(!active.length){genMsg.innerHTML='<div class="alert bad">Add at least one validator name and target.</div>';return}
+
+ // هنا السحر كله: القراءة اللايف من الشاشة عشان مفيش أي داتا تهرب مننا
+ let checkedLabels = new Set();
+ document.querySelectorAll('#statusSummary input[type="checkbox"]:checked').forEach(cb => checkedLabels.add(cb.value));
+
  let gov=statsBy(KEY.gov), sup=statsBy(KEY.sup);
  let globalAssignedIds=new Set(), globalAssignedPhones=new Set(), globalAssignedNames=new Set(), globalAssignedFallback=new Set();
+ 
  let pool=rows.filter(r=>{
   const cls=classifyStatus(r[KEY.hq]);
-  return statusConfig[cls.label]?.checked??false;
+  return checkedLabels.has(cls.label);
  }).filter(r=>{
   const k=callIdentity(r);
   if(k.id && globalAssignedIds.has(k.id))return false;
@@ -595,6 +615,7 @@ function generate(){
   if(!k.id && !k.phone && !k.name && globalAssignedFallback.has(k.fallback))return false;
   return true;
  });
+ 
  let wg=+wGov.value||0, ws=+wSup.value||0, wa=+wAge.value||0, jit=+jitter.value||0;
  allocations=[];
  let need=active.reduce((s,v)=>s+attemptsFor(v),0), picked=0, vIndex=0;
