@@ -458,6 +458,16 @@ document.getElementById("file").addEventListener("change",async e=>{
  const f=e.target.files[0]; if(!f)return;
  const text=await f.text(), arr=parseCSV(text); headers=arr[0].map(x=>clean(x).replace(/^\ufeff/,""));
  rows=arr.slice(1).filter(a=>a.some(x=>clean(x)!=="")).map(a=>Object.fromEntries(headers.map((h,i)=>[h,a[i]??""])));
+ 
+ // ==========================================
+ // السحر هنا: فلترة الناس اللي مخلصوش تدريب
+ // ==========================================
+ const lastDateCol = headers.find(h => h.toLowerCase().includes("last date"));
+ if (lastDateCol) {
+     rows = rows.filter(r => clean(r[lastDateCol]) !== "");
+ }
+ // ==========================================
+
  analyzeStatuses(); validate(); renderStats(); clearAllocation();
 });
 
@@ -495,7 +505,6 @@ function renderStatusSummary(counts){
   const cfg=statusConfig[key];
   const isNumeric=cfg.type==="Completed";
   const cnt=counts[key];
-  // الكود هنا بقى بيعتمد على قراءة الـ DOM مباشرة بدل ما يبعت الداتا جوه الفانكشن
   html+=`<label style="display:flex;align-items:center;gap:8px;cursor:${isNumeric?'not-allowed':'pointer'}">
    <input type="checkbox" value="${esc(key)}" ${cfg.checked?'checked':''} ${isNumeric?'disabled':''} onchange="renderStats()">
    <span style="font-size:13px;"><b>${esc(key)}</b> <span class="muted" style="margin-left:4px;">(${cnt})</span></span>
@@ -509,6 +518,15 @@ function validate(){
  let a=[], missing=Object.values(KEY).filter(k=>!headers.includes(k));
  if(missing.length)a.push(`<div class="alert bad">Missing required columns: ${missing.map(esc).join(", ")}</div>`);
  else a.push(`<div class="alert ok">File loaded successfully. Dynamic status filtering enabled.</div>`);
+ 
+ // رسالة تأكيد فلترة الناس اللي مخلصوش تدريب
+ const lastDateCol = headers.find(h => h.toLowerCase().includes("last date"));
+ if(!lastDateCol) {
+    a.push(`<div class="alert warn"><b>تنبيه:</b> ملقيتش عمود فيه كلمة "Last Date". تم سحب كل الأسماء اللي في الشيت بدون استبعاد اللي لسه بيتدربوا.</div>`);
+ } else {
+    a.push(`<div class="alert ok"><b>تأكيد:</b> تم استبعاد الناس اللي لسه مخلصوش تدريب تلقائياً (خانة ${esc(lastDateCol)} عندهم فاضية). الأرقام اللي تحت دي للمتدربين اللي خلصوا بس.</div>`);
+ }
+
  if(!phoneColumn())a.push(`<div class="alert warn"><b>Phone number column is not present in this file.</b> The allocator will work, but phone cannot appear in exports until your source CSV includes a Phone/Mobile column.</div>`);
  let ids={}; rows.forEach(r=>{let x=clean(r[KEY.id]);ids[x]=(ids[x]||0)+1});let dup=Object.entries(ids).filter(([k,v])=>k&&v>1);
  if(dup.length)a.push(`<div class="alert warn">Found ${dup.length} duplicated HR Code(s). Duplicates are excluded from double-selection; please review the source data.</div>`);
@@ -518,7 +536,6 @@ function validate(){
 function renderStats(){
  let done=rows.filter(hasHQ).length, sups=new Set(rows.map(r=>clean(r[KEY.sup])).filter(Boolean)), govs=new Set(rows.map(r=>clean(r[KEY.gov])).filter(Boolean));
  
- // قراءة حية ومباشرة للـ Checkboxes من الشاشة لتجنب أي أخطاء
  const cbContainer = document.getElementById("statusSummary");
  let eligible = 0;
  
@@ -597,7 +614,6 @@ function generate(){
  let active=validators.filter(v=>clean(v.name)&&attemptsFor(v)>0);
  if(!active.length){genMsg.innerHTML='<div class="alert bad">Add at least one validator name and target.</div>';return}
 
- // هنا السحر كله: القراءة اللايف من الشاشة عشان مفيش أي داتا تهرب مننا
  let checkedLabels = new Set();
  document.querySelectorAll('#statusSummary input[type="checkbox"]:checked').forEach(cb => checkedLabels.add(cb.value));
 
