@@ -544,6 +544,17 @@ document.getElementById("file").addEventListener("change",async e=>{
  if (questionnaireResultCol) {
      rows = rows.filter(r => clean(r[questionnaireResultCol]) !== "تم الاستقالة");
  }
+
+ // Exclude officers whose phone number is blank or effectively zero.
+ // Examples excluded: blank, 0, 00, 000, or any value made only of zeros.
+ const sourcePhoneCol = phoneColumn();
+ if (sourcePhoneCol) {
+     rows = rows.filter(r => {
+         const rawPhone = clean(r[sourcePhoneCol]);
+         const normalizedPhone = rawPhone.replace(/\D/g, "");
+         return normalizedPhone !== "" && !/^0+$/.test(normalizedPhone);
+     });
+ }
  // ==========================================
 
  analyzeStatuses(); validate(); renderStats(); clearAllocation();
@@ -612,7 +623,12 @@ function validate(){
     a.push(`<div class="alert warn"><b>تنبيه:</b> ملقيتش عمود "Questionnaire Result"، لذلك فلترة "تم الاستقالة" غير متاحة.</div>`);
  }
 
- if(!phoneColumn())a.push(`<div class="alert warn"><b>Phone number column is not present in this file.</b> The allocator will work, but phone cannot appear in exports until your source CSV includes a Phone/Mobile column.</div>`);
+ const phoneCol = phoneColumn();
+ if(!phoneCol) {
+    a.push(`<div class="alert warn"><b>Phone number column is not present in this file.</b> The allocator will work, but phone cannot appear in exports until your source CSV includes a Phone/Mobile column.</div>`);
+ } else {
+    a.push(`<div class="alert ok"><b>تأكيد:</b> تم استبعاد أي موظف رقم موبايله فاضي أو صفر بالكامل من التوزيع (${esc(phoneCol)}).</div>`);
+ }
  let ids={}; rows.forEach(r=>{let x=clean(r[KEY.id]);ids[x]=(ids[x]||0)+1});let dup=Object.entries(ids).filter(([k,v])=>k&&v>1);
  if(dup.length)a.push(`<div class="alert warn">Found ${dup.length} duplicated HR Code(s). Duplicates are excluded from double-selection; please review the source data.</div>`);
  document.getElementById("alerts").innerHTML=a.join("");
