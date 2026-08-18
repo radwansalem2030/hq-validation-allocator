@@ -668,7 +668,10 @@ const SAVED_VALIDATORS=[
 "Mahmoud Mohsen Ahmed Abdallah Aldawlatly",
 "Mohamed Emad Emam Hassan",
 "Mohamed Gamal Fathi Ahmed Samaha",
-"Nader Mohamed Abdallah Sherif Baraka"
+"Nader Mohamed Abdallah Sherif Baraka",
+"Alaa Hassan Ahmed Abdelsamea",
+"Sherein Ahmed Mohamed Ahmed Khoder",
+"Hana Mohamed"
 ];
 function initSavedValidators(){
  const s=document.getElementById("savedValidatorSelect"); if(!s)return;
@@ -813,17 +816,21 @@ function renderCoverage(){
 function getOrderedCols(){
  const pc=phoneColumn();
  // Fixed export schema — only the requested columns are included.
+ // The final three columns come directly from the source CSV.
  return [
   "Assigned HQ Validator",
   "Allocation Date",
   KEY.id,
-  pc,
+  pc || "Phone Number",
   KEY.name,
   KEY.spec,
   KEY.hire,
   KEY.sup,
-  KEY.branch
- ].filter(Boolean);
+  KEY.branch,
+  "Questionnaire Result",
+  "72 Hours Latness",
+  "Test Hours Latness"
+ ];
 }
 function exportCols(){return getOrderedCols()}
 
